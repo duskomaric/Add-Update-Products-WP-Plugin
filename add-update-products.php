@@ -127,192 +127,74 @@ class Add_Update_Products_Plugin
 
             foreach ($product_batches as $batch) {
                 foreach ($batch as $product_data) {
-
-                    if ($product_data->Kat1 === null )
-                        {
-                            $products_without_main_category++;
-                        }
-
-                    $existing_product_id = $wpdb->get_var(
-                        $wpdb->prepare(
-                            "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_sku' AND meta_value = %s",
-                            $product_data->SKU
-                        )
-                    );
-
+                    if ($product_data->Kat1 === null) {
+                        $products_without_main_category++;
+                    }
+            
+                    $existing_product_id = wc_get_product_id_by_sku($product_data->SKU);
+            
                     if ($existing_product_id) {
                         try {
-                            $wpdb->update(
-                                $wpdb->posts,
-                                array(
-                                    'post_title' => $product_data->NazivProizvoda,
-                                ),
-                                array(
-                                    'ID' => $existing_product_id,
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => $product_data->Cijena,
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_regular_price',
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => $product_data->AkcijskaCijena,
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_sale_price',
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => $product_data->Kolicina,
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_stock',
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => $product_data->MinKolicina,
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_low_stock_amount',
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => 'yes',
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_manage_stock',
-                                )
-                            );
-
-                            $wpdb->update(
-                                $wpdb->postmeta,
-                                array(
-                                    'meta_value' => $product_data->DodatniBodovi,
-                                ),
-                                array(
-                                    'post_id' => $existing_product_id,
-                                    'meta_key' => '_wc_points_earned',
-                                )
-                            );
-
+                            $product = wc_get_product($existing_product_id);
+            
+                            $product->set_name($product_data->NazivProizvoda);
+                            $product->set_regular_price($product_data->Cijena);
+            
+                            if ($product_data->AkcijskaCijena == 0.0) {
+                                $product->set_sale_price(null);
+                            } else {
+                                $product->set_sale_price($product_data->AkcijskaCijena);
+                            }
+            
+                            $product->set_stock_quantity($product_data->Kolicina);
+                            $product->set_low_stock_amount($product_data->MinKolicina);
+                            $product->set_manage_stock(true);
+                            $product->update_meta_data('_wc_points_earned', $product_data->DodatniBodovi);
+            
+                            $product->save();
+            
                             $this->category_add_or_update($product_data->Kat1, $product_data->Kat2, $product_data->Kat3, $existing_product_id);
-
+            
                             echo '<div class="notice notice-success"><p>' . $product_data->NazivProizvoda . ' has been updated.</p></div>';
-
+            
                             $products_updated++;
                         } catch (Exception $e) {
                             echo '<div class="notice notice-error"><p>Error updating ' . $product_data->NazivProizvoda . ': ' . $e->getMessage() . '</p></div>';
                         }
                     } else {
                         try {
-                            $new_product_id = wp_insert_post(
-                                array(
-                                    'post_title' => $product_data->NazivProizvoda,
-                                    'post_type' => 'product',
-                                    'post_status' => 'publish',
-                                )
-                            );
-
-                            if ($new_product_id) {
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_sku',
-                                        'meta_value' => $product_data->SKU,
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_regular_price',
-                                        'meta_value' => $product_data->Cijena,
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_sale_price',
-                                        'meta_value' => $product_data->AkcijskaCijena,
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_stock',
-                                        'meta_value' => $product_data->Kolicina,
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_low_stock_amount',
-                                        'meta_value' => $product_data->MinKolicina,
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_manage_stock',
-                                        'meta_value' => 'yes',
-                                    )
-                                );
-
-                                $wpdb->insert(
-                                    $wpdb->postmeta,
-                                    array(
-                                        'post_id' => $new_product_id,
-                                        'meta_key' => '_wc_points_earned',
-                                        'meta_value' => $product_data->DodatniBodovi,
-                                    )
-                                );
-
-                                echo '<div class="notice notice-success"><p>' . $product_data->NazivProizvoda . ' has been inserted.</p></div>';
+                            $new_product = new WC_Product();
+            
+                            $new_product->set_name($product_data->NazivProizvoda);
+                            $new_product->set_regular_price($product_data->Cijena);
+            
+                            if ($product_data->AkcijskaCijena == 0.0) {
+                                $new_product->set_sale_price(null);
+                            } else {
+                                $new_product->set_sale_price($product_data->AkcijskaCijena);
                             }
-
+            
+                            $new_product->set_stock_quantity($product_data->Kolicina);
+                            $new_product->set_low_stock_amount($product_data->MinKolicina);
+                            $new_product->set_manage_stock(true);
+                            $new_product->update_meta_data('_sku', $product_data->SKU);
+                            $new_product->update_meta_data('_wc_points_earned', $product_data->DodatniBodovi);
+            
+                            $new_product_id = $new_product->save();
+            
                             $this->category_add_or_update($product_data->Kat1, $product_data->Kat2, $product_data->Kat3, $new_product_id);
-
+            
+                            echo '<div class="notice notice-success"><p>' . $product_data->NazivProizvoda . ' has been inserted.</p></div>';
+            
                             $products_inserted++;
-
                         } catch (Exception $e) {
                             echo '<div class="notice notice-error"><p>Error inserting ' . $product_data->NazivProizvoda . ': ' . $e->getMessage() . '</p></div>';
                         }
                     }
                 }
             }
+            
+            
 
             ?>
         </div>
