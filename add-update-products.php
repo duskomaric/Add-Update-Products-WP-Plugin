@@ -124,7 +124,7 @@ class Add_Update_Products_Plugin
             $products_without_main_category = 0;
             $products_inserted = 0;
             $products_updated = 0;
-
+            $brand_ids = array();
             foreach ($product_batches as $batch) {
                 foreach ($batch as $product_data) {
                     if ($product_data->Kat1 === null) {
@@ -150,6 +150,34 @@ class Add_Update_Products_Plugin
                             $product->set_low_stock_amount($product_data->MinKolicina);
                             $product->set_manage_stock(true);
                             $product->update_meta_data('_wc_points_earned', $product_data->DodatniBodovi);
+            
+                            // Get the brand name from the API response
+                            $brand_name = $product_data->Brand;
+            
+                            // Process the brand name only if it's not empty
+                            if (!empty($brand_name)) {
+                                // Check if the brand exists, and if not, create a new one
+                                if (!isset($brand_ids[$brand_name])) {
+                                    $brand = term_exists($brand_name, 'product_brand');
+                                    if (!$brand) {
+                                        // Brand does not exist, so create a new one
+                                        $brand = wp_insert_term($brand_name, 'product_brand');
+                                        if (is_wp_error($brand)) {
+                                            echo '<div class="notice notice-error"><p>Error creating brand: ' . $brand->get_error_message() . '</p></div>';
+                                            continue; // Skip this product and move to the next one
+                                        }
+                                        $brand_ids[$brand_name] = $brand['term_id']; // Store the new brand ID
+                                    } else {
+                                        $brand_ids[$brand_name] = $brand['term_id']; // Store the existing brand ID
+                                    }
+                                }
+            
+                                // Get the brand term ID from the stored array
+                                $brand_id = $brand_ids[$brand_name];
+            
+                                // Assign the brand to the product
+                                wp_set_object_terms($existing_product_id, $brand_id, 'product_brand', true);
+                            }
             
                             $product->save();
             
@@ -180,6 +208,34 @@ class Add_Update_Products_Plugin
                             $new_product->update_meta_data('_sku', $product_data->SKU);
                             $new_product->update_meta_data('_wc_points_earned', $product_data->DodatniBodovi);
             
+                            // Get the brand name from the API response
+                            $brand_name = $product_data->Brand;
+            
+                            // Process the brand name only if it's not empty
+                            if (!empty($brand_name)) {
+                                // Check if the brand exists, and if not, create a new one
+                                if (!isset($brand_ids[$brand_name])) {
+                                    $brand = term_exists($brand_name, 'product_brand');
+                                    if (!$brand) {
+                                        // Brand does not exist, so create a new one
+                                        $brand = wp_insert_term($brand_name, 'product_brand');
+                                        if (is_wp_error($brand)) {
+                                            echo '<div class="notice notice-error"><p>Error creating brand: ' . $brand->get_error_message() . '</p></div>';
+                                            continue; // Skip this product and move to the next one
+                                        }
+                                        $brand_ids[$brand_name] = $brand['term_id']; // Store the new brand ID
+                                    } else {
+                                        $brand_ids[$brand_name] = $brand['term_id']; // Store the existing brand ID
+                                    }
+                                }
+            
+                                // Get the brand term ID from the stored array
+                                $brand_id = $brand_ids[$brand_name];
+            
+                                // Assign the brand to the product
+                                update_post_meta($new_product_id, '_product_brand', $brand_id);
+                            }
+            
                             $new_product_id = $new_product->save();
             
                             $this->category_add_or_update($product_data->Kat1, $product_data->Kat2, $product_data->Kat3, $new_product_id);
@@ -193,6 +249,11 @@ class Add_Update_Products_Plugin
                     }
                 }
             }
+            
+            // ... (existing code)
+            
+            
+            
             
             
 
